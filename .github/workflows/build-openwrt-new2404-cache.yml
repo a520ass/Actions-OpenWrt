@@ -133,6 +133,8 @@ jobs:
             openwrt/tools
             openwrt/toolchain
             openwrt/tmp
+            openwrt/feeds
+            openwrt/package
           key: ${{ runner.os }}-openwrt-${{ env.REPO_BRANCH }}-${{ env.CONFIG_FILE }}
 
       - name: Compile the firmware
@@ -163,6 +165,8 @@ jobs:
             openwrt/tools
             openwrt/toolchain
             openwrt/tmp
+            openwrt/feeds
+            openwrt/package
           key: ${{ runner.os }}-openwrt-${{ env.REPO_BRANCH }}-${{ env.CONFIG_FILE }}
 
       - name: targz build dir
