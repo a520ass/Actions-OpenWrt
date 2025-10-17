@@ -1,0 +1,1412 @@
+From df328958c1bb72c5ead0632380c8e31c65fdc591 Mon Sep 17 00:00:00 2001
+From: a520a <a520ass@hotmail.com>
+Date: Fri, 17 Oct 2025 15:01:51 +0800
+Subject: [PATCH] add ath79 dts
+
+---
+ .../dts/ar7240_tplink_tl-wr941n-v5-cn.dts     | 176 ++++++++++++++
+ target/linux/ath79/dts/ar7242_meraki_mr12.dts |  89 +++----
+ .../ath79/dts/ar9331_mercury_mw150r-v10.dts   | 147 +++++++++++
+ .../ath79/dts/ar9344_tplink_tl-wdr4310-v1.dts | 230 +++++++++++++++++-
+ .../ath79/dts/qca9533_tplink_tl-wr845n-v3.dts | 154 ++++++++++++
+ .../ath79/dts/qca9558_netgear_jnr3300-v1.dts  | 179 ++++++++++++++
+ .../ath79/dts/tp9343_tplink_tl-wr886n-v2.dts  | 144 +++++++++++
+ .../generic/base-files/etc/board.d/01_leds    |  22 +-
+ .../generic/base-files/etc/board.d/02_network |  20 ++
+ .../etc/hotplug.d/firmware/10-ath9k-eeprom    |   3 +
+ target/linux/ath79/image/generic-tp-link.mk   |  54 +++-
+ 11 files changed, 1159 insertions(+), 59 deletions(-)
+ create mode 100644 target/linux/ath79/dts/ar7240_tplink_tl-wr941n-v5-cn.dts
+ create mode 100644 target/linux/ath79/dts/ar9331_mercury_mw150r-v10.dts
+ create mode 100644 target/linux/ath79/dts/qca9533_tplink_tl-wr845n-v3.dts
+ create mode 100644 target/linux/ath79/dts/qca9558_netgear_jnr3300-v1.dts
+ create mode 100644 target/linux/ath79/dts/tp9343_tplink_tl-wr886n-v2.dts
+
+diff --git a/target/linux/ath79/dts/ar7240_tplink_tl-wr941n-v5-cn.dts b/target/linux/ath79/dts/ar7240_tplink_tl-wr941n-v5-cn.dts
+new file mode 100644
+index 0000000000..74db06a717
+--- /dev/null
++++ b/target/linux/ath79/dts/ar7240_tplink_tl-wr941n-v5-cn.dts
+@@ -0,0 +1,176 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "ar7240.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++
++/ {
++	model = "TP-Link TL-WR941N v5 (CN)";
++	compatible = "tplink,tl-wr941n-v5-cn", "qca,ar7240";
++
++	aliases {
++		led-boot = &led_system;
++		led-failsafe = &led_system;
++		led-running = &led_system;
++		led-upgrade = &led_system;
++		label-mac-device = &ath9k;
++	};
++
++	keys {
++		compatible = "gpio-keys";
++
++		reset {
++			label = "reset";
++			linux,code = <KEY_RESTART>;
++			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
++			debounce-interval = <60>;
++		};
++
++		wps {
++			label = "wps";
++			linux,code = <KEY_WPS_BUTTON>;
++			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
++			debounce-interval = <60>;
++		};
++	};
++
++	leds: leds {
++		compatible = "gpio-leds";
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&pinmux_switch_led_pins>;
++
++		led_system: system {
++			label = "green:system";
++			gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
++		};
++
++		qss {
++			label = "green:qss";
++			gpios = <&gpio 0 GPIO_ACTIVE_LOW>;
++		};
++
++		lan1 {
++			label = "green:lan1";
++			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
++		};
++
++		lan2 {
++			label = "green:lan2";
++			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
++		};
++
++		lan3 {
++			label = "green:lan3";
++			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
++		};
++
++		lan4 {
++			label = "green:lan4";
++			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
++		};
++
++		wan {
++			label = "green:wan";
++			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
++		};
++	};
++
++	ath9k-leds {
++		compatible = "gpio-leds";
++
++		wlan {
++			label = "green:wlan";
++			gpios = <&ath9k 1 GPIO_ACTIVE_LOW>;
++			linux,default-trigger = "phy0tpt";
++		};
++	};
++};
++
++&spi {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			uboot: partition@0 {
++				reg = <0x0 0x20000>;
++				label = "u-boot";
++				read-only;
++			};
++
++			partition@20000 {
++				compatible = "tplink,firmware";
++				reg = <0x20000 0x7d0000>;
++				label = "firmware";
++			};
++
++			art: partition@7f0000 {
++				reg = <0x7f0000 0x10000>;
++				label = "art";
++				read-only;
++			};
++		};
++	};
++};
++
++&eth0 {
++	status = "okay";
++
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++	mac-address-increment = <(-1)>;
++};
++
++&eth1 {
++	status = "okay";
++
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++	mac-address-increment = <1>;
++};
++
++&pcie {
++	status = "okay";
++
++	ath9k: wifi@0,0 {
++		reg = <0x0000 0 0 0 0>;
++		qca,no-eeprom;
++		nvmem-cells = <&macaddr_uboot_1fc00>;
++		nvmem-cell-names = "mac-address";
++		#gpio-cells = <2>;
++		gpio-controller;
++	};
++};
++
++&ath9k {
++	compatible = "pci168c,002b";
++};
++
++&pinmux {
++	pinmux_switch_led_pins: switch_led_pins {
++		pinctrl-single,bits = <0x0 0x0 0xf8>;
++	};
++};
++
++&uart {
++	status = "okay";
++};
++
++&uboot {
++	compatible = "nvmem-cells";
++	#address-cells = <1>;
++	#size-cells = <1>;
++
++	macaddr_uboot_1fc00: macaddr@1fc00 {
++		reg = <0x1fc00 0x6>;
++	};
++};
+\ No newline at end of file
+diff --git a/target/linux/ath79/dts/ar7242_meraki_mr12.dts b/target/linux/ath79/dts/ar7242_meraki_mr12.dts
+index ea64b947ef..71e0016bce 100644
+--- a/target/linux/ath79/dts/ar7242_meraki_mr12.dts
++++ b/target/linux/ath79/dts/ar7242_meraki_mr12.dts
+@@ -10,10 +10,10 @@
+ 	model = "Meraki MR12";
+ 
+ 	aliases {
+-		led-boot = &led_power_orange;
+-		led-failsafe = &led_power_orange;
+-		led-running = &led_power_green;
+-		led-upgrade = &led_power_orange;
++		led-boot = &led_power_green;
++        led-failsafe = &led_power_green;
++        led-running = &led_power_green;
++        led-upgrade = &led_power_green;
+ 	};
+ 
+ 	extosc: ref {
+@@ -24,54 +24,33 @@
+ 	};
+ 
+ 	leds {
+-		compatible = "gpio-leds";
+-
+-		link1 {
+-			label = "green:link1";
+-			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
+-		};
+-
+-		link2 {
+-			label = "green:link2";
+-			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+-		};
+-
+-		link3 {
+-			label = "green:link3";
+-			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
+-		};
+-
+-		link4 {
+-			label = "green:link4";
+-			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
+-		};
+-
+-		lan {
+-			label = "green:lan";
+-			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
+-		};
+-
+-		led_power_orange: power_orange {
+-			label = "orange:power";
+-			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
+-			panic-indicator;
+-		};
+-
+-		led_power_green: power_green {
+-			label = "green:power";
+-			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
+-		};
+-	};
+-
+-	keys {
+-		compatible = "gpio-keys";
+-
+-		reset {
+-			label = "reset";
+-			linux,code = <KEY_RESTART>;
+-			gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
+-		};
+-	};
++        compatible = "gpio-leds";
++
++        wlan {
++            label = "green:wlan";
++            gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
++        };
++
++        lan {
++            label = "green:lan";
++            gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
++        };
++
++        led_power_green: power_green {
++            label = "green:power";
++            gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
++        };
++    };
++
++    keys {
++        compatible = "gpio-keys";
++
++        reset {
++            label = "reset";
++            linux,code = <KEY_RESTART>;
++            gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
++        };
++    };
+ };
+ 
+ &pcie {
+@@ -93,8 +72,8 @@
+ &mdio0 {
+ 	status = "okay";
+ 
+-	phy4: ethernet-phy@4 {
+-		reg = <4>;
++	phy0: ethernet-phy@0 {
++		reg = <0>;
+ 	};
+ };
+ 
+@@ -106,7 +85,7 @@
+ 	pll-data = <0x02000000 0x00000101 0x00001313>;
+ 
+ 	phy-mode = "rgmii-id";
+-	phy-handle = <&phy4>;
++	phy-handle = <&phy0>;
+ };
+ 
+ &mdio1 {
+diff --git a/target/linux/ath79/dts/ar9331_mercury_mw150r-v10.dts b/target/linux/ath79/dts/ar9331_mercury_mw150r-v10.dts
+new file mode 100644
+index 0000000000..dbed63d40d
+--- /dev/null
++++ b/target/linux/ath79/dts/ar9331_mercury_mw150r-v10.dts
+@@ -0,0 +1,147 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "ar9331.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++
++/ {
++	model = "Mercury MW150R v10";
++	compatible = "mercury,mw150r-v10", "qca,ar9331";
++
++	aliases {
++		led-boot = &led_system;
++		led-failsafe = &led_system;
++		led-running = &led_system;
++		led-upgrade = &led_system;
++		label-mac-device = &wmac;
++	};
++
++	keys {
++		compatible = "gpio-keys";
++
++		reset {
++			label = "reset";
++			linux,code = <KEY_RESTART>;
++			gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
++			debounce-interval = <60>;
++		};
++
++		wps {
++			label = "wps";
++			linux,code = <KEY_WPS_BUTTON>;
++			gpios = <&gpio 26 GPIO_ACTIVE_HIGH>;
++			debounce-interval = <60>;
++		};
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&switch_led_disable_pins>;
++
++		lan1 {
++			label = "green:lan1";
++			gpios = <&gpio 13 GPIO_ACTIVE_HIGH>;
++		};
++
++		lan2 {
++			label = "green:lan2";
++			gpios = <&gpio 14 GPIO_ACTIVE_HIGH>;
++		};
++
++		lan3 {
++			label = "green:lan3";
++			gpios = <&gpio 15 GPIO_ACTIVE_HIGH>;
++		};
++
++		lan4 {
++			label = "green:lan4";
++			gpios = <&gpio 16 GPIO_ACTIVE_HIGH>;
++		};
++
++		qss {
++			label = "green:qss";
++			gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
++		};
++
++		led_system: system {
++			label = "green:system";
++			gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
++		};
++
++		wan {
++			label = "green:wan";
++			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
++		};
++
++		wlan {
++			label = "green:wlan";
++			gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "phy0tpt";
++		};
++	};
++};
++
++&spi {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			uboot: partition@0 {
++				reg = <0x0 0x20000>;
++				label = "u-boot";
++				read-only;
++			};
++
++			firmware: partition@20000 {
++				compatible = "tplink,firmware";
++				reg = <0x20000 0x7d0000>;
++				label = "firmware";
++			};
++
++			art: partition@7f0000 {
++				reg = <0x7f0000 0x10000>;
++				label = "art";
++				read-only;
++			};
++		};
++	};
++};
++
++&eth0 {
++	status = "okay";
++
++	mtd-mac-address = <&uboot 0x1fc00>;
++	mtd-mac-address-increment = <1>;
++
++	gmac-config {
++		device = <&gmac>;
++
++		switch-phy-addr-swap = <0>;
++		switch-phy-swap = <0>;
++	};
++};
++
++&eth1 {
++	status = "okay";
++
++	mtd-mac-address = <&uboot 0x1fc00>;
++	mtd-mac-address-increment = <(-1)>;
++};
++
++&wmac {
++	status = "okay";
++
++	mtd-cal-data = <&art 0x1000>;
++	mtd-mac-address = <&uboot 0x1fc00>;
++};
+diff --git a/target/linux/ath79/dts/ar9344_tplink_tl-wdr4310-v1.dts b/target/linux/ath79/dts/ar9344_tplink_tl-wdr4310-v1.dts
+index 287b02143b..f75df281fd 100644
+--- a/target/linux/ath79/dts/ar9344_tplink_tl-wdr4310-v1.dts
++++ b/target/linux/ath79/dts/ar9344_tplink_tl-wdr4310-v1.dts
+@@ -1,8 +1,234 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+ 
+-#include "ar9344_tplink_tl-wdr4300.dtsi"
++#include "ar9344.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
+ 
+ / {
+-	model = "TP-Link TL-WDR4310 v1";
++    	model = "TP-Link TL-WDR4310 v1";
+ 	compatible = "tplink,tl-wdr4310-v1", "qca,ar9344";
++
++	aliases {
++        led-boot = &led_system;
++        led-failsafe = &led_system;
++        led-running = &led_system;
++        led-upgrade = &led_system;
++        label-mac-device = &ath9k;
++    };
++
++    leds: leds {
++        compatible = "gpio-leds";
++
++        wlan2g {
++            label = "green:wlan2g";
++            gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
++            linux,default-trigger = "phy0tpt";
++        };
++
++        led_system: system {
++            label = "green:system";
++            gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
++            default-state = "on";
++        };
++
++        qss {
++            label = "green:qss";
++            gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
++        };
++    };
++
++    ath9k-leds {
++        compatible = "gpio-leds";
++
++        wlan5g {
++            label = "green:wlan5g";
++            gpios = <&ath9k 0 GPIO_ACTIVE_LOW>;
++            linux,default-trigger = "phy1tpt";
++        };
++    };
++
++    keys {
++        compatible = "gpio-keys";
++
++        reset {
++            linux,code = <KEY_RESTART>;
++            gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
++            debounce-interval = <60>;
++        };
++
++        wifi {
++            linux,code = <KEY_RFKILL>;
++            linux,input-type = <EV_SW>;
++            gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
++            debounce-interval = <60>;
++        };
++    };
++
++    gpio-export {
++        compatible = "gpio-export";
++
++        gpio_usb1_power {
++            gpio-export,name = "tp-link:power:usb1";
++            gpio-export,output = <1>;
++            gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
++        };
++
++        gpio_usb2_power {
++            gpio-export,name = "tp-link:power:usb2";
++            gpio-export,output = <1>;
++            gpios = <&gpio 21 GPIO_ACTIVE_HIGH>;
++        };
++
++        gpio_ext_lna0 {
++            gpio-export,name = "tp-link:ext:lna0";
++            gpio-export,output = <1>;
++            gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
++        };
++
++        gpio_ext_lna1 {
++            gpio-export,name = "tp-link:ext:lna1";
++            gpio-export,output = <1>;
++            gpios = <&gpio 19 GPIO_ACTIVE_HIGH>;
++        };
++    };
++};
++
++&ref {
++	clock-frequency = <40000000>;
+ };
++
++&spi {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <33000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			uboot: partition@0 {
++				label = "u-boot";
++				reg = <0x000000 0x020000>;
++				read-only;
++			};
++
++			partition@20000 {
++				compatible = "tplink,firmware";
++				label = "firmware";
++				reg = <0x020000 0xfd0000>;
++			};
++
++			art: partition@ff0000 {
++				label = "art";
++				reg = <0xff0000 0x010000>;
++				read-only;
++			};
++		};
++	};
++};
++
++&pcie {
++	status = "okay";
++
++	ath9k: wifi@0,0 {
++		compatible = "pci168c,0033";
++		reg = <0x0000 0 0 0 0>;
++		qca,no-eeprom;
++		#gpio-cells = <2>;
++		gpio-controller;
++	};
++};
++
++&wmac {
++	status = "okay";
++
++	mtd-cal-data = <&art 0x1000>;
++
++	mtd-mac-address = <&uboot 0x1fc00>;
++    mtd-mac-address-increment = <(-1)>;
++};
++
++&leds {
++	usb1 {
++		label = "green:usb1";
++		gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
++		trigger-sources = <&hub_port1>;
++		linux,default-trigger = "usbport";
++	};
++
++	usb2 {
++		label = "green:usb2";
++		gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
++		trigger-sources = <&hub_port2>;
++		linux,default-trigger = "usbport";
++	};
++};
++
++&usb {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++
++	port@1 {
++		#address-cells = <1>;
++		#size-cells = <0>;
++		reg = <1>;
++		#trigger-source-cells = <0>;
++
++		hub_port1: port@1 {
++			reg = <1>;
++			#trigger-source-cells = <0>;
++		};
++
++		hub_port2: port@2 {
++			reg = <2>;
++			#trigger-source-cells = <0>;
++		};
++	};
++};
++
++&usb_phy {
++	status = "okay";
++};
++
++&ath9k {
++	mtd-mac-address = <&uboot 0x1fc00>;
++};
++
++&mdio0 {
++	status = "okay";
++
++	phy-mask = <0>;
++
++	phy0: ethernet-phy@0 {
++		reg = <0>;
++		phy-mode = "rgmii";
++
++		qca,ar8327-initvals = <
++			0x04 0x07600000 /* PORT0 PAD MODE CTRL */
++			0x10 0x80000080 /* POWER_ON_STRAP */
++			0x50 0xc737c737 /* LED_CTRL0 */
++			0x54 0x00000000 /* LED_CTRL1 */
++			0x58 0x00000000 /* LED_CTRL2 */
++			0x5c 0x0030c300 /* LED_CTRL3 */
++			0x7c 0x0000007e /* PORT0_STATUS */
++			>;
++	};
++};
++
++&eth0 {
++	status = "okay";
++
++	/* default for ar934x, except for 1000M */
++	pll-data = <0x06000000 0x00000101 0x00001616>;
++
++	mtd-mac-address = <&uboot 0x1fc00>;
++
++	phy-mode = "rgmii";
++	phy-handle = <&phy0>;
++};
+\ No newline at end of file
+diff --git a/target/linux/ath79/dts/qca9533_tplink_tl-wr845n-v3.dts b/target/linux/ath79/dts/qca9533_tplink_tl-wr845n-v3.dts
+new file mode 100644
+index 0000000000..b2dcebd7b4
+--- /dev/null
++++ b/target/linux/ath79/dts/qca9533_tplink_tl-wr845n-v3.dts
+@@ -0,0 +1,154 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qca953x.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++
++/ {
++	compatible = "tplink,tl-wr845n-v3", "qca,qca9533";
++	model = "TP-Link TL-WR845N v3";
++
++	chosen {
++		bootargs = "console=ttyS0,115200n8";
++	};
++
++	aliases {
++		led-boot = &led_qss;
++		led-failsafe = &led_qss;
++		led-running = &led_qss;
++		led-upgrade = &led_qss;
++		label-mac-device = &wmac;
++	};
++
++	leds: leds {
++		compatible = "gpio-leds";
++
++		wifi {
++			label = "green:wlan";
++			gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
++			linux,default-trigger = "phy0tpt";
++		};
++
++		led_qss: qss {
++			label = "green:qss";
++			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
++		};
++
++		wan {
++			label = "green:wan";
++			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
++		};
++
++		lan1 {
++			label = "green:lan1";
++			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
++		};
++
++		lan2 {
++			label = "green:lan2";
++			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
++		};
++
++		lan3 {
++			label = "green:lan3";
++			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
++		};
++
++		lan4 {
++			label = "green:lan4";
++			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
++		};
++	};
++
++	keys {
++		compatible = "gpio-keys";
++
++		reset {
++			label = "Reset button";
++			linux,code = <KEY_RESTART>;
++			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
++			debounce-interval = <60>;
++		};
++
++		rfkill {
++			label = "RFKILL button";
++			linux,code = <KEY_RFKILL>;
++			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
++			debounce-interval = <60>;
++		};
++	};
++};
++
++&uart {
++	status = "okay";
++};
++
++&spi {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			uboot: partition@0 {
++				label = "u-boot";
++				reg = <0x000000 0x020000>;
++				read-only;
++			};
++
++			partition@20000 {
++				compatible = "tplink,firmware";
++				label = "firmware";
++				reg = <0x020000 0x7d0000>;
++			};
++
++			art: partition@7f0000 {
++				label = "art";
++				reg = <0x7f0000 0x010000>;
++				read-only;
++			};
++		};
++	};
++};
++
++//wan ports
++&eth0 {
++	status = "okay";
++
++	phy-handle = <&swphy4>;
++
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++	mac-address-increment = <1>;
++};
++//lan ports
++&eth1 {
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++};
++
++//wifi radio
++&wmac {
++	status = "okay";
++
++	mtd-cal-data = <&art 0x1000>;
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++};
++
++&uboot {
++	compatible = "nvmem-cells";
++	#address-cells = <1>;
++	#size-cells = <1>;
++
++	macaddr_uboot_1fc00: macaddr@1fc00 {
++		reg = <0x1fc00 0x6>;
++	};
++};
+diff --git a/target/linux/ath79/dts/qca9558_netgear_jnr3300-v1.dts b/target/linux/ath79/dts/qca9558_netgear_jnr3300-v1.dts
+new file mode 100644
+index 0000000000..051ad4ff72
+--- /dev/null
++++ b/target/linux/ath79/dts/qca9558_netgear_jnr3300-v1.dts
+@@ -0,0 +1,179 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qca955x.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++
++/ {
++	compatible = "netgear,jnr3300-v1", "qca,qca9558";
++	model = "Netgear JNR3300 v1";
++
++	chosen {
++		bootargs = "console=ttyS0,115200n8";
++	};
++
++	aliases {
++		led-boot = &led_system;
++		led-failsafe = &led_system;
++		led-running = &led_system;
++		led-upgrade = &led_system;
++		label-mac-device = &eth0;
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		led_system: system {
++			label = "green:system";
++			gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
++			default-state = "on";
++		};
++
++		power_amber {
++			label = "amber:power";
++			gpios = <&gpio 26 GPIO_ACTIVE_LOW>;
++		};
++
++		wan_green {
++			label = "green:wan";
++			gpios = <&gpio 22 GPIO_ACTIVE_LOW>;
++		};
++
++		wan_amber {
++			label = "amber:wan";
++			gpios = <&gpio 23 GPIO_ACTIVE_LOW>;
++		};
++
++		lan1_amber {
++			label = "amber:lan1";
++			gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
++		};
++
++		lan2_amber {
++			label = "amber:lan2";
++			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
++		};
++
++		lan3_amber {
++			label = "amber:lan3";
++			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
++		};
++
++		lan4_amber {
++			label = "amber:lan4";
++			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
++		};
++
++		wlan {
++			label = "green:wlan";
++			gpios = <&gpio 0 GPIO_ACTIVE_LOW>;
++			linux,default-trigger = "phy0tpt";
++		};
++
++		wps {
++			label = "green:wps";
++			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
++		};
++	};
++
++	keys {
++		compatible = "gpio-keys";
++
++		reset {
++			label = "reset";
++			linux,code = <KEY_RESTART>;
++			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
++			debounce-interval = <60>;
++		};
++
++		wps {
++			label = "qss";
++			linux,code = <KEY_WPS_BUTTON>;
++			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
++			debounce-interval = <60>;
++		};
++
++		rfkill {
++			label = "rfkill";
++			linux,code = <KEY_RFKILL>;
++			gpios = <&gpio 21 GPIO_ACTIVE_LOW>;
++			debounce-interval = <60>;
++		};
++	};
++};
++
++&uart {
++	status = "okay";
++};
++
++&spi {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			uboot: partition@0 {
++				label = "u-boot";
++				reg = <0x000000 0x020000>;
++				read-only;
++			};
++
++			partition@20000 {
++				compatible = "tplink,firmware";
++				label = "firmware";
++				reg = <0x020000 0x7d0000>;
++			};
++
++			art: partition@7f0000 {
++				label = "art";
++				reg = <0x7f0000 0x010000>;
++				read-only;
++			};
++		};
++	};
++};
++
++&mdio0 {
++	status = "okay";
++
++	switch0@1f {
++		compatible = "qca,ar8236";
++		reg = <0x1f>;
++	};
++};
++
++&eth0 {
++	status = "okay";
++	phy-mode = "mii";
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++	fixed-link {
++		speed = <100>;
++		full-duplex;
++	};
++};
++
++&wmac {
++	status = "okay";
++	mtd-cal-data = <&art 0x1000>;
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++};
++
++&uboot {
++	compatible = "nvmem-cells";
++	#address-cells = <1>;
++	#size-cells = <1>;
++
++	macaddr_uboot_1fc00: macaddr@1fc00 {
++		reg = <0x1fc00 0x6>;
++	};
++};
+diff --git a/target/linux/ath79/dts/tp9343_tplink_tl-wr886n-v2.dts b/target/linux/ath79/dts/tp9343_tplink_tl-wr886n-v2.dts
+new file mode 100644
+index 0000000000..0342d46724
+--- /dev/null
++++ b/target/linux/ath79/dts/tp9343_tplink_tl-wr886n-v2.dts
+@@ -0,0 +1,144 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++#include "qca956x.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++
++/ {
++	compatible = "tplink,tl-wr886n-v2", "qca,tp9343";
++	model = "TP-Link TL-WR886N v2";
++
++	chosen {
++		bootargs = "console=ttyS0,115200n8";
++	};
++
++	aliases {
++		led-boot = &led_system;
++		led-failsafe = &led_system;
++		led-running = &led_system;
++		led-upgrade = &led_system;
++		label-mac-device = &wmac;
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		led_system: system {
++			label = "white:status";
++			gpios = <&gpio 18 GPIO_ACTIVE_LOW>;
++		};
++
++		wan {
++			label = "green:wan";
++			gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
++		};
++
++		lan1 {
++			label = "green:lan1";
++			gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
++		};
++
++		lan2 {
++			label = "green:lan2";
++			gpios = <&gpio 5 GPIO_ACTIVE_LOW>;
++		};
++
++		lan3 {
++			label = "green:lan3";
++			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
++		};
++
++		lan4 {
++			label = "green:lan4";
++			gpios = <&gpio 7 GPIO_ACTIVE_LOW>;
++		};
++	};
++
++	keys {
++		compatible = "gpio-keys";
++
++		reset {
++			label = "Reset button";
++			linux,code = <KEY_RESTART>;
++			gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
++		};
++	};
++};
++
++&spi {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			uboot: partition@0 {
++				label = "u-boot";
++				reg = <0x000000 0x020000>;
++				read-only;
++			};
++
++			partition@20000 {
++				compatible = "tplink,firmware";
++				label = "firmware";
++				reg = <0x020000 0x7d0000>;
++			};
++
++			art: partition@7f0000 {
++				label = "art";
++				reg = <0x7f0000 0x010000>;
++				read-only;
++			};
++		};
++	};
++};
++
++&uart {
++	status = "okay";
++};
++
++//wan ports
++&eth0 {
++	status = "okay";
++
++	phy-mode = "mii";
++	phy-handle = <&swphy4>;
++
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++	mac-address-increment = <1>;
++};
++
++//lan ports
++&eth1 {
++    status = "okay";
++
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++	mac-address-increment = <(-1)>;
++};
++
++&wmac {
++	status = "okay";
++
++	mtd-cal-data = <&art 0x1000>;
++	nvmem-cells = <&macaddr_uboot_1fc00>;
++	nvmem-cell-names = "mac-address";
++};
++
++&uboot {
++	compatible = "nvmem-cells";
++	#address-cells = <1>;
++	#size-cells = <1>;
++
++	macaddr_uboot_1fc00: macaddr@1fc00 {
++		reg = <0x1fc00 0x6>;
++	};
++};
+\ No newline at end of file
+diff --git a/target/linux/ath79/generic/base-files/etc/board.d/01_leds b/target/linux/ath79/generic/base-files/etc/board.d/01_leds
+index 146470855d..76cc95ff11 100755
+--- a/target/linux/ath79/generic/base-files/etc/board.d/01_leds
++++ b/target/linux/ath79/generic/base-files/etc/board.d/01_leds
+@@ -249,6 +249,17 @@ netgear,wnr2200-16m)
+ 	ucidef_set_led_switch "lan3amber" "LAN3 (amber)" "amber:lan3" "switch0" "0x08" "0x02"
+ 	ucidef_set_led_switch "lan4amber" "LAN4 (amber)" "amber:lan4" "switch0" "0x10" "0x02"
+ 	;;
++mercury,mw150r-v10)
++    ucidef_set_led_netdev "wan" "WAN" "green:wan" "eth1"
++    ucidef_set_led_switch "lan1" "LAN1" "green:lan1" "switch0" "0x02"
++    ucidef_set_led_switch "lan2" "LAN2" "green:lan2" "switch0" "0x04"
++    ucidef_set_led_switch "lan3" "LAN3" "green:lan3" "switch0" "0x08"
++    ucidef_set_led_switch "lan4" "LAN4" "green:lan4" "switch0" "0x10"
++    ;;
++netgear,jnr3300-v1)
++    ucidef_set_led_wlan "wlan" "WLAN" "green:wlan" "phy0tpt"
++    ucidef_set_led_switch "wan" "WAN" "green:wan" "switch0" "0x20"
++    ;;
+ openmesh,om2p-v4|\
+ openmesh,om2p-hs-v4)
+ 	ucidef_set_led_netdev "wan" "WAN" "blue:wan" "eth0"
+@@ -291,13 +302,22 @@ tplink,archer-c6-v2-us)
+ 	ucidef_set_led_switch "wan" "WAN" "green:wan" "switch0" "0x02"
+ 	;;
+ tplink,archer-c25-v1|\
+-tplink,tl-wr842n-v3)
++tplink,tl-wr842n-v3|\
++tplink,tl-wr845n-v3|\
++tplink,tl-wr886n-v2)
+ 	ucidef_set_led_netdev "wan" "WAN" "green:wan" "eth1"
+ 	ucidef_set_led_switch "lan1" "LAN1" "green:lan1" "switch0" "0x10"
+ 	ucidef_set_led_switch "lan2" "LAN2" "green:lan2" "switch0" "0x08"
+ 	ucidef_set_led_switch "lan3" "LAN3" "green:lan3" "switch0" "0x04"
+ 	ucidef_set_led_switch "lan4" "LAN4" "green:lan4" "switch0" "0x02"
+ 	;;
++tplink,tl-wr941n-v5-cn)
++	ucidef_set_led_netdev "wan" "WAN" "green:wan" "eth0"
++	ucidef_set_led_switch "lan1" "LAN1" "green:lan1" "switch0" "0x02"
++	ucidef_set_led_switch "lan2" "LAN2" "green:lan2" "switch0" "0x04"
++	ucidef_set_led_switch "lan3" "LAN3" "green:lan3" "switch0" "0x08"
++	ucidef_set_led_switch "lan4" "LAN4" "green:lan4" "switch0" "0x10"
++	;;
+ tplink,archer-d50-v1)
+ 	ucidef_set_led_switch "lan" "LAN" "white:lan" "switch0" "0x1c"
+ 	ucidef_set_led_switch "wan_data" "WAN Data" "white:internet" "switch0" "0x02" "" "tx rx"
+diff --git a/target/linux/ath79/generic/base-files/etc/board.d/02_network b/target/linux/ath79/generic/base-files/etc/board.d/02_network
+index b01dfa41d1..4bcc7ef7d6 100755
+--- a/target/linux/ath79/generic/base-files/etc/board.d/02_network
++++ b/target/linux/ath79/generic/base-files/etc/board.d/02_network
+@@ -152,6 +152,8 @@ ath79_setup_interfaces()
+ 	tplink,tl-wdr3500-v1|\
+ 	tplink,tl-wr842n-v1|\
+ 	tplink,tl-wr842n-v3|\
++	tplink,tl-wr845n-v3|\
++	tplink,tl-wr886n-v2|\
+ 	ubnt,airrouter)
+ 		ucidef_set_interface_wan "eth1"
+ 		ucidef_add_switch "switch0" \
+@@ -298,6 +300,10 @@ ath79_setup_interfaces()
+ 		ucidef_add_switch "switch0" \
+ 			"0@eth0" "2:lan:1" "3:lan:2" "4:lan:3" "5:lan:4" "1:wan"
+ 		;;
++	netgear,jnr3300-v1)
++		ucidef_add_switch "switch0" \
++			"0@eth0" "1:lan:1" "2:lan:2" "3:lan:3" "4:lan:4" "5:wan"
++		;;
+ 	nec,wg1200cr|\
+ 	qxwlan,e1700ac-v2-8m|\
+ 	qxwlan,e1700ac-v2-16m|\
+@@ -336,6 +342,11 @@ ath79_setup_interfaces()
+ 		ucidef_add_switch "switch0" \
+ 			"0@eth1" "1:lan" "2:lan" "3:lan" "4:lan"
+ 		;;
++	tplink,tl-wr941n-v5-cn)
++		ucidef_set_interface_wan "eth0"
++		ucidef_add_switch "switch0" \
++		"0@eth1" "1:lan" "2:lan" "3:lan" "4:lan"
++		;;
+ 	phicomm,k2t)
+ 		ucidef_add_switch "switch0" \
+ 			"0@eth0" "3:lan:1" "5:lan:2" "4:wan"
+@@ -406,6 +417,11 @@ ath79_setup_interfaces()
+ 		ucidef_add_switch "switch0" \
+ 			"1:lan" "2:lan" "3:lan" "4:lan" "0:wan" "9@eth0"
+ 		;;
++	mercury,mw150r-v10)
++		ucidef_set_interface_wan "eth1"
++		ucidef_add_switch "switch0" \
++			"0@eth0" "1:lan:1" "2:lan:2" "3:lan:3" "4:lan:4"
++		;;
+ 	ubnt,aircube-ac)
+ 		ucidef_add_switch "switch0" \
+ 			"0@eth0" "2:lan:1" "3:lan:2" "5:lan:3" "4:wan"
+@@ -631,6 +647,10 @@ ath79_setup_macs()
+ 		base_mac=$(mtd_get_mac_binary info 0x8)
+ 		wan_mac=$(macaddr_add "$base_mac" 1)
+ 		;;
++	netgear,jnr3300-v1)
++		base_mac=$(mtd_get_mac_binary u-boot 0x1fc00)
++		wan_mac=$(macaddr_add "$base_mac" 1)
++		;;
+ 	trendnet,tew-823dru)
+ 		lan_mac=$(mtd_get_mac_text mac 0x4)
+ 		wan_mac=$(mtd_get_mac_text mac 0x18)
+diff --git a/target/linux/ath79/generic/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom b/target/linux/ath79/generic/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
+index 08d9e017a7..1385321930 100644
+--- a/target/linux/ath79/generic/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
++++ b/target/linux/ath79/generic/base-files/etc/hotplug.d/firmware/10-ath9k-eeprom
+@@ -108,6 +108,9 @@ case "$FIRMWARE" in
+ 	meraki,mr12)
+ 		caldata_extract "art" 0x11000 0xeb8
+ 		;;
++	tplink,tl-wr941n-v5-cn)
++		caldata_extract "art" 0x1000 0xeb8
++		;;
+ 	netgear,wnr2200-8m|\
+ 	netgear,wnr2200-16m|\
+ 	pcs,cap324|\
+diff --git a/target/linux/ath79/image/generic-tp-link.mk b/target/linux/ath79/image/generic-tp-link.mk
+index fceebdaaf3..737f8835ef 100644
+--- a/target/linux/ath79/image/generic-tp-link.mk
++++ b/target/linux/ath79/image/generic-tp-link.mk
+@@ -1,5 +1,57 @@
+ include ./common-tp-link.mk
+ 
++define Device/mercury_mw150r-v10
++  $(Device/tplink-8mlzma)
++  SOC := ar9331
++  DEVICE_VENDOR := Mercury
++  DEVICE_MODEL := MW150R
++  DEVICE_VARIANT := v10
++  TPLINK_HWID := 0x01500010
++  SUPPORTED_DEVICES += mw150r-v10
++endef
++TARGET_DEVICES += mercury_mw150r-v10
++
++define Device/netgear_jnr3300-v1
++  $(Device/tplink-8mlzma)
++  SOC := qca9558
++  DEVICE_VENDOR := Netgear
++  DEVICE_MODEL := JNR3300
++  DEVICE_VARIANT := v1
++  TPLINK_HWID := 0x33000001
++  SUPPORTED_DEVICES += jnr3300-v1
++endef
++TARGET_DEVICES += netgear_jnr3300-v1
++
++define Device/tplink_tl-wr845n-v3
++  $(Device/tplink-8mlzma)
++  SOC := qca9533
++  DEVICE_MODEL := TL-WR845N
++  DEVICE_VARIANT := v3
++  TPLINK_HWID := 0x08450003
++  SUPPORTED_DEVICES += tl-wr845n-v3
++endef
++TARGET_DEVICES += tplink_tl-wr845n-v3
++
++define Device/tplink_tl-wr886n-v2
++  $(Device/tplink-8mlzma)
++  SOC := tp9343
++  DEVICE_MODEL := TL-WR886N
++  DEVICE_VARIANT := v2
++  TPLINK_HWID := 0x08860002
++  SUPPORTED_DEVICES += tl-wr886n-v2
++endef
++TARGET_DEVICES += tplink_tl-wr886n-v2
++
++define Device/tplink_tl-wr941n-v5-cn
++  $(Device/tplink-8m)
++  SOC := ar7240
++  DEVICE_MODEL := TL-WR941N
++  DEVICE_VARIANT := v5 (CN)
++  TPLINK_HWID := 0x09410005
++  SUPPORTED_DEVICES += tl-wr941-v4
++endef
++TARGET_DEVICES += tplink_tl-wr941n-v5-cn
++
+ define Device/tplink_archer-a7-v5
+   $(Device/tplink-safeloader-uimage)
+   SOC := qca9563
+@@ -543,7 +595,7 @@ endef
+ TARGET_DEVICES += tplink_tl-wdr4300-v1-il
+ 
+ define Device/tplink_tl-wdr4310-v1
+-  $(Device/tplink-8mlzma)
++  $(Device/tplink-16mlzma)
+   SOC := ar9344
+   DEVICE_MODEL := TL-WDR4310
+   DEVICE_VARIANT := v1
+-- 
+2.34.1
+
