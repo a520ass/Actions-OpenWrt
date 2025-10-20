@@ -33,7 +33,10 @@ on:
         description: 'DIY P2 SH'
         required: true
         default: 'diy-part2.sh'
-
+      upload_bin:
+        description: 'upload build dir'
+        required: true
+        default: 'false'
 env:
   REPO_URL: ${{ inputs.repo_url }}
   REPO_BRANCH: ${{ inputs.repo_branch }}
@@ -42,7 +45,7 @@ env:
   CONFIG_FILE: ${{ inputs.config_file }}
   DIY_P1_SH: ${{ inputs.p1_sh }}
   DIY_P2_SH: ${{ inputs.p2_sh }}
-  UPLOAD_BIN_DIR: true
+  UPLOAD_BIN_DIR: ${{ inputs.upload_bin }}
   UPLOAD_FIRMWARE: true
   UPLOAD_WSS: true
   UPLOAD_RELEASE: true
@@ -197,6 +200,14 @@ jobs:
           echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
           touch release.txt
           [ $UPLOAD_WSS = true ] && echo "🔗 [Wenshushu](${{ steps.wenshushu.outputs.url }})" >> release.txt
+          echo "自定义构建参数" >> release.txt
+          echo "REPO_URL: $REPO_URL" >> release.txt
+          echo "REPO_BRANCH: $REPO_BRANCH" >> release.txt
+          echo "PATCH_VERSION: $PATCH_VERSION" >> release.txt
+          echo "FEEDS_CONF: $FEEDS_CONF" >> release.txt
+          echo "CONFIG_FILE: $CONFIG_FILE" >> release.txt
+          echo "DIY_P1_SH: $DIY_P1_SH" >> release.txt
+          echo "DIY_P2_SH: $DIY_P2_SH" >> release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Upload firmware to release

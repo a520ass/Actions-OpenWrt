@@ -218,6 +218,14 @@ jobs:
           echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
           touch release.txt
           [ $UPLOAD_WSS = true ] && echo "🔗 [Wenshushu](${{ steps.wenshushu.outputs.url }})" >> release.txt
+          echo "自定义构建参数" >> release.txt
+          echo "REPO_URL: $REPO_URL" >> release.txt
+          echo "REPO_BRANCH: $REPO_BRANCH" >> release.txt
+          echo "PATCH_VERSION: $PATCH_VERSION" >> release.txt
+          echo "FEEDS_CONF: $FEEDS_CONF" >> release.txt
+          echo "CONFIG_FILE: $CONFIG_FILE" >> release.txt
+          echo "DIY_P1_SH: $DIY_P1_SH" >> release.txt
+          echo "DIY_P2_SH: $DIY_P2_SH" >> release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Upload firmware to release
