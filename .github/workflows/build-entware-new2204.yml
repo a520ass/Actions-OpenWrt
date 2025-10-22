@@ -82,6 +82,10 @@ jobs:
           [ -e $CONFIG_FILE ] && mv $CONFIG_FILE Entware/.config
           cd Entware
           grep '/opt' -rl --exclude-dir=".git" . | xargs sed -i "s|/opt\>|${ENTWARE_PREFIX}|g"
+          pre_length=${#ENTWARE_PREFIX}
+          pre_length_s=$((pre_length + 14))
+          sed -i "s/n_global_authkeys_dir = 18/n_global_authkeys_dir = $pre_length_s/" package/network/services/dropbear/patches/996-fix-paths.patch
+          cat package/network/services/dropbear/patches/996-fix-paths.patch
 
       - name: Restore cached 
         id: cache-openwrt-restore
