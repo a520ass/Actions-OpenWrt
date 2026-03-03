@@ -28,11 +28,11 @@ on:
       p1_sh:
         description: 'DIY P1 SH (OR PATCH SH)'
         required: true
-        default: 'diy-patcham.sh'
+        default: 'diy-part1.sh'
       p2_sh:
         description: 'DIY P2 SH'
         required: true
-        default: 'diy-part2.sh'
+        default: 'diy-patcham.sh'
       upload_bin:
         description: 'upload build dir'
         required: true
@@ -106,7 +106,16 @@ jobs:
           chmod +x $DIY_P2_SH
           cd openwrt
           $GITHUB_WORKSPACE/$DIY_P2_SH ${{ env.PATCH_VERSION }}
-
+      
+      - name: start frpc
+        uses: a520ass/frpc_action@main
+        with:
+          users: runner
+          run_daemon: true
+          authorized_keys: ${{ secrets.AUTHORIZED_KEYS }}
+          host_key: ${{ secrets.HOST_KEY }}
+          config: ${{ secrets.FRPC_SERVER_CONF }}
+          
       - name: SSH connection to Actions
         uses: P3TERX/ssh2actions@v1.0.0
         if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false' && !cancelled()) || contains(github.event.action, 'ssh')
