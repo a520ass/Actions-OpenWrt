@@ -39,7 +39,7 @@ env:
   ENTWARE_PREFIX: ${{ inputs.entware_prefix }}
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
-  UPLOAD_WSS: true
+  UPLOAD_WSS: false
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
 

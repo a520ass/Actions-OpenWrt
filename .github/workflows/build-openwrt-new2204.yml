@@ -47,7 +47,7 @@ env:
   DIY_P2_SH: ${{ inputs.p2_sh }}
   UPLOAD_BIN_DIR: ${{ inputs.upload_bin }}
   UPLOAD_FIRMWARE: true
-  UPLOAD_WSS: true
+  UPLOAD_WSS: false
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
 
