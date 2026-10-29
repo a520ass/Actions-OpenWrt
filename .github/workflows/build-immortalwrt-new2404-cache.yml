@@ -1,0 +1,273 @@
+
+name: Build ImmortalWrt Use Ubuntu 2404 And Cache
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+      repo_url:
+        description: 'REPO URL'
+        required: true
+        default: 'https://github.com/immortalwrt/immortalwrt'
+      repo_branch:
+        description: 'REPO BRANCH'
+        required: true
+        default: 'master'
+      patch_version:
+        description: 'PATCH VERSION'
+        required: true
+        default: 'immortalwrt-msm8916'
+      config_file:
+        description: 'CONFIG FILE'
+        required: true
+        default: 'immortalwrt-msm8916.config'
+      p1_sh:
+        description: 'DIY P1 SH (OR PATCH SH)'
+        required: true
+        default: 'diy-part1.sh'
+      p2_sh:
+        description: 'DIY P2 SH'
+        required: true
+        default: 'diy-patcham.sh'
+      upload_bin:
+        description: 'upload build dir'
+        required: true
+        default: 'false'
+
+env:
+  REPO_URL: ${{ inputs.repo_url }}
+  REPO_BRANCH: ${{ inputs.repo_branch }}
+  PATCH_VERSION: ${{ inputs.patch_version }}
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: ${{ inputs.config_file }}
+  DIY_P1_SH: ${{ inputs.p1_sh }}
+  DIY_P2_SH: ${{ inputs.p2_sh }}
+  UPLOAD_BIN_DIR: ${{ inputs.upload_bin }}
+  UPLOAD_FIRMWARE: true
+  UPLOAD_WSS: true
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget patchutils android-sdk-libsparse-utils mkbootimg tree
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+          # todo fix mkbookimg
+          sudo rm -rf /usr/bin/mkbootimg
+          sudo wget https://dl.kstore.dev/download/5190/immortalwrt/mkbootimg -O /usr/bin/mkbootimg
+          sudo chmod +x /usr/bin/mkbootimg
+
+      - name: Clone source code
+        working-directory: /workdir
+        run: |
+          df -hT
+          git clone $REPO_URL -b $REPO_BRANCH immortalwrt
+          ln -sf /workdir/immortalwrt $GITHUB_WORKSPACE/immortalwrt
+
+      - name: Load custom feeds
+        run: |
+          [ -e $FEEDS_CONF ] && mv $FEEDS_CONF immortalwrt/feeds.conf.default
+          [ -e build-files ] && mv build-files immortalwrt/build-files
+          chmod +x $DIY_P1_SH
+          cd immortalwrt
+          $GITHUB_WORKSPACE/$DIY_P1_SH ${{ env.PATCH_VERSION }}
+
+      - name: Update feeds
+        run: cd immortalwrt && ./scripts/feeds update -a
+
+      - name: Install feeds
+        run: cd immortalwrt && ./scripts/feeds install -a
+
+      - name: Load custom configuration
+        run: |
+          [ -e files ] && mv files immortalwrt/files
+          [ -e $CONFIG_FILE ] && mv $CONFIG_FILE immortalwrt/.config
+          chmod +x $DIY_P2_SH
+          cd immortalwrt
+          $GITHUB_WORKSPACE/$DIY_P2_SH ${{ env.PATCH_VERSION }}
+      
+      - name: start frpc
+        uses: a520ass/frpc_action@main
+        with:
+          users: runner
+          run_daemon: true
+          authorized_keys: ${{ secrets.AUTHORIZED_KEYS }}
+          host_key: ${{ secrets.HOST_KEY }}
+          config: ${{ secrets.FRPC_SERVER_CONF }}
+          
+      - name: SSH connection to Actions
+        uses: P3TERX/ssh2actions@v1.0.0
+        if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false' && !cancelled()) || contains(github.event.action, 'ssh')
+        env:
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+      - name: Download package
+        id: package
+        run: |
+          cd immortalwrt
+          make defconfig
+          make download -j8
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
+
+      - name: Restore cached 
+        id: cache-immortalwrt-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            immortalwrt/build_dir
+            immortalwrt/staging_dir
+            immortalwrt/tools
+            immortalwrt/toolchain
+            immortalwrt/tmp
+          key: ${{ runner.os }}-immortalwrt-${{ env.REPO_BRANCH }}-${{ env.CONFIG_FILE }}
+
+      - name: Compile the firmware
+        id: compile
+        run: |
+          cd immortalwrt
+          echo -e "$(nproc) thread compile"
+          make -j$(nproc) || make -j1 || make -j1 V=s
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "DEVICE_NAME=_NEW" >> $GITHUB_ENV
+          echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+      - name: Check space usage and check bin
+        if: (!cancelled())
+        run: |
+          df -hT
+          cd immortalwrt
+          tree bin
+
+      - name: Save cached 
+        id: cache-immortalwrt-save
+        uses: actions/cache/save@v4
+        if: steps.cache-immortalwrt-restore.outputs.cache-hit != 'true' && steps.compile.outputs.status == 'success' && !cancelled()
+        with:
+          path: |
+            immortalwrt/build_dir
+            immortalwrt/staging_dir
+            immortalwrt/tools
+            immortalwrt/toolchain
+            immortalwrt/tmp
+          key: ${{ runner.os }}-immortalwrt-${{ env.REPO_BRANCH }}-${{ env.CONFIG_FILE }}
+
+      - name: targz build dir
+        if: env.UPLOAD_BIN_DIR == 'true' && !cancelled()
+        run: |
+          cd immortalwrt
+          tar -czf bin.tar.gz bin
+          tar -czf dl.tar.gz dl
+          tar -czf feeds.tar.gz feeds
+          tar -czf build_dir.tar.gz build_dir
+          tar -czf staging_dir.tar.gz staging_dir
+
+      - name: Upload bin directory
+        uses: actions/upload-artifact@main
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+        with:
+          name: ImmortalWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: immortalwrt/bin.tar.gz
+
+      - name: Upload dl directory
+        uses: actions/upload-artifact@main
+        if: env.UPLOAD_BIN_DIR == 'true' && !cancelled()
+        with:
+          name: ImmortalWrt_dl${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: immortalwrt/dl.tar.gz
+
+      - name: Upload feeds directory
+        uses: actions/upload-artifact@main
+        if: env.UPLOAD_BIN_DIR == 'true' && !cancelled()
+        with:
+          name: ImmortalWrt_feeds${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: immortalwrt/feeds.tar.gz
+
+      - name: Upload build_dir directory
+        uses: actions/upload-artifact@main
+        if: env.UPLOAD_BIN_DIR == 'true' && !cancelled()
+        with:
+          name: ImmortalWrt_build_dir${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: immortalwrt/build_dir.tar.gz
+
+      - name: Upload staging_dir directory
+        uses: actions/upload-artifact@main
+        if: env.UPLOAD_BIN_DIR == 'true' && !cancelled()
+        with:
+          name: ImmortalWrt_staging_dir${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: immortalwrt/staging_dir.tar.gz
+
+      - name: Organize files
+        id: organize
+        if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+        run: |
+          cd immortalwrt/bin/targets/*/*
+          tar -czf targets_packages.tar.gz packages
+          rm -rf packages
+          echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Upload firmware directory
+        uses: actions/upload-artifact@main
+        if: steps.organize.outputs.status == 'success' && !cancelled()
+        with:
+          name: ImmortalWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: ${{ env.FIRMWARE }}
+
+      - name: Upload firmware to Wenshushu
+        id: wenshushu
+        if: steps.organize.outputs.status == 'success' && env.UPLOAD_WSS == 'true' && !cancelled()
+        run: |
+          curl -fsSL git.io/file-transfer | sh
+          ./transfer wss -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wenshushu.log
+          echo "::warning file=wenshushu.com::$(cat wenshushu.log | grep https)"
+          echo "::set-output name=url::$(cat wenshushu.log | grep Download | grep https | cut -f3 -d" ")"
+
+      - name: Generate release tag
+        id: tag
+        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+        run: |
+          echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+          touch release.txt
+          [ $UPLOAD_WSS = true ] && echo "🔗 [Wenshushu](${{ steps.wenshushu.outputs.url }})" >> release.txt
+          echo "自定义构建参数" >> release.txt
+          echo "REPO_URL: $REPO_URL" >> release.txt
+          echo "REPO_BRANCH: $REPO_BRANCH" >> release.txt
+          echo "PATCH_VERSION: $PATCH_VERSION" >> release.txt
+          echo "FEEDS_CONF: $FEEDS_CONF" >> release.txt
+          echo "CONFIG_FILE: $CONFIG_FILE" >> release.txt
+          echo "DIY_P1_SH: $DIY_P1_SH" >> release.txt
+          echo "DIY_P2_SH: $DIY_P2_SH" >> release.txt
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Upload firmware to release
+        uses: softprops/action-gh-release@v1
+        if: steps.tag.outputs.status == 'success' && !cancelled()
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          body_path: release.txt
+          files: ${{ env.FIRMWARE }}/*
