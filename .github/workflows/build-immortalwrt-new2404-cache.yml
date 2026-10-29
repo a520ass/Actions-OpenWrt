@@ -75,7 +75,7 @@ jobs:
           sudo chown $USER:$GROUPS /workdir
           # todo fix mkbookimg
           sudo rm -rf /usr/bin/mkbootimg
-          sudo wget https://dl.kstore.dev/download/5190/immortalwrt/mkbootimg -O /usr/bin/mkbootimg
+          sudo wget https://dl.kstore.dev/download/5190/openwrt/mkbootimg -O /usr/bin/mkbootimg
           sudo chmod +x /usr/bin/mkbootimg
 
       - name: Clone source code
