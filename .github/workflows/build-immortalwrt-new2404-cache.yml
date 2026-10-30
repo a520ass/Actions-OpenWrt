@@ -223,10 +223,10 @@ jobs:
         id: organize
         if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
         run: |
-          find build_dir/target-* -path "*/linux-*/.config" -type f -exec cp {} immortalwrt/bin/targets/*/*/kernel.config \;
           cd immortalwrt/bin/targets/*/*
           tar -czf targets_packages.tar.gz packages
           rm -rf packages
+          find ../../../../build_dir/target-* -path "*/linux-*/.config" -type f -exec cp {} ./kernel.config \;
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
 
