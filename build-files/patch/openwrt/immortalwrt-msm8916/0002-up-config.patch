@@ -1,0 +1,24 @@
+From e2790d3b055ab6a8f2180fdd433855458e9f5ab8 Mon Sep 17 00:00:00 2001
+From: a520a <a520ass@hotmail.com>
+Date: Fri, 30 Oct 2026 10:53:41 +0800
+Subject: [PATCH] up config
+
+---
+ target/linux/msm89xx/config-6.18 | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/target/linux/msm89xx/config-6.18 b/target/linux/msm89xx/config-6.18
+index 4f5c882..e84ec3b 100644
+--- a/target/linux/msm89xx/config-6.18
++++ b/target/linux/msm89xx/config-6.18
+@@ -917,7 +917,6 @@ CONFIG_SPMI=y
+ # CONFIG_SPMI_HISI3670 is not set
+ CONFIG_SPMI_MSM_PMIC_ARB=y
+ # CONFIG_SPMI_PMIC_CLKDIV is not set
+-# CONFIG_SQUASHFS is not set
+ CONFIG_STACKDEPOT=y
+ CONFIG_STACKPROTECTOR=y
+ CONFIG_STACKPROTECTOR_PER_TASK=y
+-- 
+2.34.1
+
