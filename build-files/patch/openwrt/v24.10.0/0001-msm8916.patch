@@ -6,9 +6,9 @@ Subject: [PATCH 1/5] msm8916
 ---
  package/kernel/linux/modules/netdevices.mk    |  30 +
  package/kernel/mac80211/ath.mk                |  22 +-
- package/tmp/qrtr/Makefile                     |  58 ++
- package/tmp/rmtfs/Makefile                    |  44 +
- package/tmp/rmtfs/files/rmtfs.init            |  23 +
+ package/network/utils/qrtr/Makefile                     |  58 ++
+ package/network/utils/rmtfs/Makefile                    |  44 +
+ package/network/utils/rmtfs/files/rmtfs.init            |  23 +
  target/linux/msm89xx/Makefile                 |  25 +
  .../msm89xx/base-files/etc/board.d/02_network |  19 +
  .../base-files/etc/init.d/mount_firmware      |  10 +
@@ -27,9 +27,9 @@ Subject: [PATCH 1/5] msm8916
  ...ts-qcom-msm8916-longcheer-l8150-Enab.patch |  69 ++
  ...qcom_bam_dmux-Track-the-device-stats.patch | 105 ++
  23 files changed, 2265 insertions(+), 3 deletions(-)
- create mode 100644 package/tmp/qrtr/Makefile
- create mode 100644 package/tmp/rmtfs/Makefile
- create mode 100755 package/tmp/rmtfs/files/rmtfs.init
+ create mode 100644 package/network/utils/qrtr/Makefile
+ create mode 100644 package/network/utils/rmtfs/Makefile
+ create mode 100755 package/network/utils/rmtfs/files/rmtfs.init
  create mode 100644 target/linux/msm89xx/Makefile
  create mode 100755 target/linux/msm89xx/base-files/etc/board.d/02_network
  create mode 100755 target/linux/msm89xx/base-files/etc/init.d/mount_firmware
@@ -149,11 +149,11 @@ index 5b13b6a..54e23fe 100644
  define KernelPackage/carl9170
    $(call KernelPackage/mac80211/Default)
    TITLE:=Driver for Atheros AR9170 USB sticks
-diff --git a/package/tmp/qrtr/Makefile b/package/tmp/qrtr/Makefile
+diff --git a/package/network/utils/qrtr/Makefile b/package/network/utils/qrtr/Makefile
 new file mode 100644
 index 0000000..1d09ba7
 --- /dev/null
-+++ b/package/tmp/qrtr/Makefile
++++ b/package/network/utils/qrtr/Makefile
 @@ -0,0 +1,58 @@
 +include $(TOPDIR)/rules.mk
 +
@@ -213,11 +213,11 @@ index 0000000..1d09ba7
 +
 +$(eval $(call BuildPackage,qrtr-lib))
 +$(eval $(call BuildPackage,qrtr))
-diff --git a/package/tmp/rmtfs/Makefile b/package/tmp/rmtfs/Makefile
+diff --git a/package/network/utils/rmtfs/Makefile b/package/network/utils/rmtfs/Makefile
 new file mode 100644
 index 0000000..446bf74
 --- /dev/null
-+++ b/package/tmp/rmtfs/Makefile
++++ b/package/network/utils/rmtfs/Makefile
 @@ -0,0 +1,44 @@
 +include $(TOPDIR)/rules.mk
 +
@@ -263,11 +263,11 @@ index 0000000..446bf74
 +endef
 +
 +$(eval $(call BuildPackage,rmtfs))
-diff --git a/package/tmp/rmtfs/files/rmtfs.init b/package/tmp/rmtfs/files/rmtfs.init
+diff --git a/package/network/utils/rmtfs/files/rmtfs.init b/package/network/utils/rmtfs/files/rmtfs.init
 new file mode 100755
 index 0000000..3a27f5d
 --- /dev/null
-+++ b/package/tmp/rmtfs/files/rmtfs.init
++++ b/package/network/utils/rmtfs/files/rmtfs.init
 @@ -0,0 +1,23 @@
 +#!/bin/sh /etc/rc.common
 +
