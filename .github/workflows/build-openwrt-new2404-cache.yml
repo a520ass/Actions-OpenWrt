@@ -55,7 +55,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
-
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@main
@@ -272,5 +273,5 @@ jobs:
           commit: ${{ github.sha }}
           bodyFile: release.txt
           artifacts: "${{ env.FIRMWARE }}/*"
-          prerelease: true
+          allowUpdates: true
 
