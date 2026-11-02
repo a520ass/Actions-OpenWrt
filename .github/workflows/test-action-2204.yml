@@ -52,7 +52,7 @@ jobs:
           commit: ${{ github.sha }}
           bodyFile: release.txt
           artifacts: "release.txt"
-          prerelease: true
+          allowUpdates: true
           
       - name: start frpc
         uses: a520ass/frpc_action@main
