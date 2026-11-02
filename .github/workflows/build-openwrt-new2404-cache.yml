@@ -266,9 +266,8 @@ jobs:
       - name: Upload firmware to release
         uses: ncipollo/release-action@v1
         if: steps.tag.outputs.status == 'success' && !cancelled()
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
           tag: ${{ steps.tag.outputs.release_tag }}
           commit: ${{ github.sha }}
           bodyFile: release.txt
