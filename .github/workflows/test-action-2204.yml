@@ -37,11 +37,22 @@ jobs:
           sudo chown $USER:$GROUPS /workdir
 
       - name: Test
-        working-directory: /workdir
         run: |
           df -hT
           id
-
+          touch release.txt
+          
+      - name: Upload firmware to release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+        with:
+          tag: test
+          commit: ${{ github.sha }}
+          bodyFile: release.txt
+          artifacts: "release.txt"
+          prerelease: true
+          
       - name: start frpc
         uses: a520ass/frpc_action@main
         with:
