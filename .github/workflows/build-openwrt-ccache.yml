@@ -9,6 +9,18 @@ on:
         description: 'SSH connection to Actions'
         required: false
         default: 'false'
+        options:
+          - false
+          - true
+      Cache:
+        type: choice
+        required: false
+        default: 使用缓存
+        options:
+          - 使用缓存
+          - 只读缓存
+          - 重新编译
+          - 不使用缓存
       repo_url:
         description: 'REPO URL'
         required: true
@@ -51,6 +63,16 @@ env:
   UPLOAD_WSS: false
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
+  # 使用缓存：恢复并保存；只读缓存：只恢复不上传；重新编译：从空缓存编译并保存；不使用缓存：全部关闭
+  # 定时或外部触发没有选项，按“使用缓存”处理
+  CACHE_MODE: ${{ inputs.Cache || '使用缓存' }}
+  # ccache 默认按编译器文件的修改时间判断编译器是否变化，工具链重新编译后会全部不命中，改为按版本判断
+  CCACHE_COMPILERCHECK: '%compiler% -dumpmachine; %compiler% -dumpversion'
+  CCACHE_MAXSIZE: 3G
+  
+permissions:
+  contents: write
+  actions: write
 
 jobs:
   build:
@@ -67,7 +89,7 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget patchutils android-sdk-libsparse-utils mkbootimg tree
+          sudo -E apt-get -qq install build-essential ccache clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget patchutils android-sdk-libsparse-utils mkbootimg tree
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
           sudo timedatectl set-timezone "$TZ"
@@ -83,7 +105,30 @@ jobs:
         run: |
           df -hT
           git clone $REPO_URL -b $REPO_BRANCH openwrt
+          # tools 的 .prepared 标记文件名里带源码文件的修改时间，固定时间后缓存的工具链才能被识别
+          find openwrt/tools openwrt/toolchain -exec touch -h -d @1600000000 {} +
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+      # 缓存在 clone 之后恢复，否则目录非空会导致 git clone 失败
+      # dl 与机型无关，共用一份，按前缀恢复最新的
+      - name: Restore download cache
+        id: dl-cache
+        if: env.CACHE_MODE != '不使用缓存'
+        uses: actions/cache/restore@v4
+        with:
+          path: /workdir/openwrt/dl
+          key: openwrt-dl-
+          restore-keys: |
+            openwrt-dl-
+      
+      - name: Restore compiler cache
+        if: env.CACHE_MODE == '使用缓存' || env.CACHE_MODE == '只读缓存'
+        uses: actions/cache/restore@v4
+        with:
+          path: /workdir/openwrt/.ccache
+          key: openwrt-ccache-an7581-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            openwrt-ccache-an7581-
 
       - name: Load custom feeds
         run: |
@@ -106,6 +151,13 @@ jobs:
           chmod +x $DIY_P2_SH
           cd openwrt
           $GITHUB_WORKSPACE/$DIY_P2_SH ${{ env.PATCH_VERSION }}
+          # 编译日志写到 logs/，失败时上传
+          sed -i '/^CONFIG_BUILD_LOG=/d; /^# CONFIG_BUILD_LOG is not set$/d' .config
+          echo 'CONFIG_BUILD_LOG=y' >> .config
+          if [ "$CACHE_MODE" != "不使用缓存" ]; then
+            sed -i '/^CONFIG_DEVEL=/d; /^# CONFIG_DEVEL is not set$/d; /^CONFIG_CCACHE=/d; /^# CONFIG_CCACHE is not set$/d' .config
+            printf 'CONFIG_DEVEL=y\nCONFIG_CCACHE=y\n' >> .config
+          fi
 
       - name: SSH connection to Actions
         uses: P3TERX/ssh2actions@v1.0.0
@@ -122,6 +174,74 @@ jobs:
           make download -j8
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
+          echo "dl_key=openwrt-dl-$(find dl -type f -printf '%P %s\n' | LC_ALL=C sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      # key 按 dl 文件列表计算，没有新下载的文件时跳过上传
+      - name: Save download cache
+        if: (env.CACHE_MODE == '使用缓存' || env.CACHE_MODE == '重新编译') && steps.package.outputs.dl_key != steps.dl-cache.outputs.cache-matched-key
+        uses: actions/cache/save@v4
+        with:
+          path: /workdir/openwrt/dl
+          key: ${{ steps.package.outputs.dl_key }}
+
+
+      # 工具链缓存：key 由 tools / toolchain / include 等源码和工具链相关配置算出，只接受完全匹配，源码一变就重新编译
+      - name: Compute toolchain cache key
+        id: toolchain
+        if: env.CACHE_MODE != '不使用缓存'
+        run: |
+          cd openwrt
+          BOARD=$(sed -n 's/^CONFIG_TARGET_BOARD="\(.*\)"$/\1/p' .config)
+          SUBTARGET=$(sed -n 's/^CONFIG_TARGET_SUBTARGET="\(.*\)"$/\1/p' .config)
+          HASH=$({
+            git rev-parse HEAD:tools HEAD:toolchain HEAD:include HEAD:rules.mk "HEAD:target/linux/$BOARD/Makefile"
+            git rev-parse "HEAD:target/linux/$BOARD/$SUBTARGET/target.mk" 2>/dev/null || true
+            grep -E '^CONFIG_(ARCH|TARGET_ARCH_PACKAGES|CPU_TYPE|TARGET_OPTIMIZATION|EXTRA_OPTIMIZATION|SOFT_FLOAT|GCC_|BINUTILS_|LIBC|MUSL|GLIBC|TOOLCHAIN|EXTERNAL_TOOLCHAIN|USE_|CCACHE|DEVEL|INSTALL_|GDB|SSP_|BUILD_NLS)' .config
+          } | sha256sum | cut -c1-16)
+          echo "key=openwrt-toolchain-an7581-$HASH" >> "$GITHUB_OUTPUT"
+      
+      - name: Restore toolchain cache
+        id: toolchain-cache
+        if: env.CACHE_MODE == '使用缓存' || env.CACHE_MODE == '只读缓存'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /workdir/openwrt/staging_dir/host
+            /workdir/openwrt/staging_dir/toolchain-*
+            /workdir/openwrt/build_dir/host
+            /workdir/openwrt/build_dir/toolchain-*
+          key: ${{ steps.toolchain.outputs.key }}
+      
+      - name: Compile tools and toolchain
+        id: toolchain-build
+        env:
+          CACHE_HIT: ${{ steps.toolchain-cache.outputs.cache-hit }}
+        run: |
+          cd openwrt
+          # 恢复的文件统一刷新为当前时间，避免比本次新生成的 .config 等文件旧而触发重新编译
+          if [ "$CACHE_HIT" = "true" ]; then
+            find staging_dir/host staging_dir/toolchain-* build_dir/host build_dir/toolchain-* -exec touch -h -d "@$(date +%s)" {} +
+          fi
+          make -j$(nproc) tools/install toolchain/install || make -j1 V=s tools/install toolchain/install
+      
+      - name: Remove stale toolchain cache
+        if: steps.toolchain-build.outcome == 'success' && env.CACHE_MODE == '重新编译'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh cache delete "${{ steps.toolchain.outputs.key }}" || true
+      
+      # 工具链编译完立即保存，后面固件编译失败或取消也不影响
+      - name: Save toolchain cache
+        if: steps.toolchain-build.outcome == 'success' && (env.CACHE_MODE == '重新编译' || (env.CACHE_MODE == '使用缓存' && steps.toolchain-cache.outputs.cache-hit != 'true'))
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /workdir/openwrt/staging_dir/host
+            /workdir/openwrt/staging_dir/toolchain-*
+            /workdir/openwrt/build_dir/host
+            /workdir/openwrt/build_dir/toolchain-*
+          key: ${{ steps.toolchain.outputs.key }}
 
       - name: Compile the firmware
         id: compile
@@ -139,6 +259,34 @@ jobs:
           df -hT
           cd openwrt
           tree bin
+
+      - name: Show compiler cache statistics
+        if: always() && steps.toolchain-build.outcome != 'skipped' && env.CACHE_MODE != '不使用缓存'
+        run: |
+          [ -x openwrt/staging_dir/host/bin/ccache ] && CCACHE_DIR=/workdir/openwrt/.ccache openwrt/staging_dir/host/bin/ccache -s || true
+      
+      # 编译失败也保存，下次重试可以复用；编译步骤没运行时不保存，避免空缓存覆盖
+      - name: Save compiler cache
+        if: always() && steps.toolchain-build.outcome != 'skipped' && (env.CACHE_MODE == '使用缓存' || env.CACHE_MODE == '重新编译')
+        uses: actions/cache/save@v4
+        with:
+          path: /workdir/openwrt/.ccache
+          key: openwrt-ccache-an7581-${{ github.run_id }}-${{ github.run_attempt }}
+      
+      # 每类缓存只保留最新一份，避免超过仓库 10GB 上限后被自动淘汰
+      - name: Remove old caches
+        if: always() && (env.CACHE_MODE == '使用缓存' || env.CACHE_MODE == '重新编译')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for PREFIX in openwrt-dl- openwrt-ccache-an7581- openwrt-toolchain-an7581-; do
+            gh cache list --key "$PREFIX" --sort created_at --order desc --limit 100 --json id --jq '.[1:][].id' |
+            while read -r ID; do
+              echo "deleting cache $ID ($PREFIX)"
+              gh cache delete "$ID"
+            done
+          done
 
       - name: targz build dir
         if: env.UPLOAD_BIN_DIR == 'true' && !cancelled()
