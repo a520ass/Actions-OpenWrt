@@ -41,6 +41,7 @@ jobs:
           df -hT
           id
           touch release.txt
+          echo "test" > release.txt
           
       - name: Upload firmware to release
         uses: ncipollo/release-action@v1
