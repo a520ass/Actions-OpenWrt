@@ -1,5 +1,5 @@
 
-name: Build OpenWrt Use Ubuntu 2404
+name: Build OpenWrt Cache
 
 on:
   repository_dispatch:
@@ -8,7 +8,7 @@ on:
       ssh:
         description: 'SSH connection to Actions'
         required: false
-        default: 'false'
+        default: false
         options:
           - false
           - true
@@ -376,12 +376,18 @@ jobs:
           echo "DIY_P2_SH: $DIY_P2_SH" >> release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
-      - name: Upload firmware to release
-        uses: softprops/action-gh-release@v1
+      - name: Create Release for this commit
         if: steps.tag.outputs.status == 'success' && !cancelled()
         env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag.outputs.release_tag }}
-          body_path: release.txt
-          files: ${{ env.FIRMWARE }}/*
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="build-${GITHUB_SHA}"
+          date_str="$(date -u +%Y-%m-%d)"
+          title="OpenWrt build: ${date_str}"
+          notes="Automated release for commit ${GITHUB_SHA} on ${GITHUB_REF_NAME}"
+
+          gh release create "$tag" \
+            --target "$GITHUB_SHA" \
+            --title "$title" \
+            --notes-file release.txt \
+            "${{ env.FIRMWARE }}/*"
