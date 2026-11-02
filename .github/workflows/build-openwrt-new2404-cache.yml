@@ -28,11 +28,11 @@ on:
       p1_sh:
         description: 'DIY P1 SH (OR PATCH SH)'
         required: true
-        default: 'diy-part1.sh'
+        default: 'diy-patcham.sh'
       p2_sh:
         description: 'DIY P2 SH'
         required: true
-        default: 'diy-patcham.sh'
+        default: 'diy-part2.sh'
       upload_bin:
         description: 'upload build dir'
         required: true
@@ -263,11 +263,14 @@ jobs:
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Upload firmware to release
-        uses: softprops/action-gh-release@v1
+        uses: ncipollo/release-action@v1
         if: steps.tag.outputs.status == 'success' && !cancelled()
         env:
           GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.tag.outputs.release_tag }}
-          body_path: release.txt
-          files: ${{ env.FIRMWARE }}/*
+          tag: ${{ steps.tag.outputs.release_tag }}
+          commit: ${{ github.sha }}
+          bodyFile: release.txt
+          artifacts: "${{ env.FIRMWARE }}/*"
+          prerelease: true
+
