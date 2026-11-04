@@ -340,6 +340,7 @@ jobs:
           cd openwrt/bin/targets/*/*
           tar -czf targets_packages.tar.gz packages
           rm -rf packages
+          find ../../../../build_dir/target-* -path "*/linux-*/.config" -type f -exec cp {} ./kernel.config \;
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
 
@@ -377,7 +378,7 @@ jobs:
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Create Release for this commit
-        if: steps.tag.outputs.status == 'success' && !cancelled()
+        if: steps.organize.outputs.status == 'success' && !cancelled()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
