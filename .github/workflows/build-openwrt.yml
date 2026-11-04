@@ -268,7 +268,7 @@ jobs:
       - name: Create Release for this commit
         if: steps.tag.outputs.status == 'success' && !cancelled()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="build-${GITHUB_SHA}"
           date_str="$(date -u +%Y-%m-%d)"
@@ -279,5 +279,4 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "$title" \
             --notes-file release.txt \
-            --prerelease \
             "${{ env.FIRMWARE }}/*"
