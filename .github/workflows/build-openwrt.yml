@@ -299,9 +299,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="build-${GITHUB_SHA}"
+          tag="build-${{ steps.tag.outputs.release_tag }}"
           date_str="$(date -u +%Y-%m-%d)"
-          title="OpenWrt build: ${date_str}"
+          title="OpenWrt build: ${{ steps.tag.outputs.release_tag }}"
           notes="Automated release for commit ${GITHUB_SHA} on ${GITHUB_REF_NAME}"
 
           gh release create "$tag" \
