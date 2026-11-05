@@ -152,7 +152,7 @@ jobs:
         run: |
           cd openwrt
           echo -e "$(nproc) thread compile toolchain"
-          make -j$(nproc) toolchain/compile || make -j1 V=s toolchain/compile
+          make -j$(nproc) tools/install toolchain/install || make -j1 V=s tools/install toolchain/install
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Save cached 
