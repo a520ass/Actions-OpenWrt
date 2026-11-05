@@ -146,12 +146,13 @@ jobs:
             openwrt/tmp
           key: ${{ runner.os }}-openwrt-${{ env.REPO_BRANCH }}-${{ env.CONFIG_FILE }}
 
-      - name: Compile tools and toolchain
+      - name: Compile toolchain
         id: compile-toolchain
+        if: steps.cache-openwrt-restore.outputs.cache-hit != 'true' && !cancelled()
         run: |
           cd openwrt
           echo -e "$(nproc) thread compile toolchain"
-          make -j$(nproc) tools/install toolchain/install || make -j1 V=s tools/install toolchain/install
+          make -j$(nproc) toolchain/compile || make -j1 V=s toolchain/compile
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Save cached 
