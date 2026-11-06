@@ -226,9 +226,12 @@ jobs:
           date_str="$(date -u +%Y-%m-%d)"
           title="OpenWrt Cache build: ${{ steps.tag.outputs.release_tag }}"
           notes="Automated release for commit ${GITHUB_SHA} on ${GITHUB_REF_NAME}"
-
+          gh api "repos/${{ github.repository }}/git/refs" \
+            --method POST \
+            --field ref="refs/tags/$tag" \
+            --field sha="$GITHUB_SHA"
+          
           gh release create "$tag" \
-            --target "$GITHUB_SHA" \
             --title "$title" \
             --notes-file release.txt \
             "${{ env.FIRMWARE }}/*"
