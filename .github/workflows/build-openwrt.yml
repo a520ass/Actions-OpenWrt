@@ -85,6 +85,8 @@ jobs:
         run: |
           df -hT
           git clone $REPO_URL -b $REPO_BRANCH openwrt
+          # tools 的 .prepared 标记文件名里带源码文件的修改时间，固定时间后缓存的工具链才能被识别
+          find openwrt/tools openwrt/toolchain -exec touch -h -d @1600000000 {} +
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
       - name: Load custom feeds
