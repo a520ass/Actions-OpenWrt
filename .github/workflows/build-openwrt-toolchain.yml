@@ -185,12 +185,12 @@ jobs:
         run: |
           cd openwrt
           mkdir buildcache
-          cd buildcache
           tar -czf bin.tar.gz bin
           tar -czf dl.tar.gz dl
           tar -czf feeds.tar.gz feeds
           tar -czf build_dir.tar.gz build_dir
           tar -czf staging_dir.tar.gz staging_dir
+          mv *.tar.gz buildcache
 
       - name: Organize files
         id: organize
