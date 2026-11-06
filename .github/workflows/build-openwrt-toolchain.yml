@@ -81,7 +81,7 @@ jobs:
         run: |
           df -hT
           git clone $REPO_URL -b $REPO_BRANCH openwrt
-		  # tools 的 .prepared 标记文件名里带源码文件的修改时间，固定时间后缓存的工具链才能被识别
+          # tools 的 .prepared 标记文件名里带源码文件的修改时间，固定时间后缓存的工具链才能被识别
           find openwrt/tools openwrt/toolchain -exec touch -h -d @1600000000 {} +
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
@@ -172,8 +172,8 @@ jobs:
         if: env.UPLOAD_BIN_DIR == 'true' && !cancelled()
         run: |
           cd openwrt
-    		  mkdir buildcache
-    		  cd buildcache
+          mkdir buildcache
+          cd buildcache
           tar -czf bin.tar.gz bin
           tar -czf dl.tar.gz dl
           tar -czf feeds.tar.gz feeds
@@ -184,9 +184,9 @@ jobs:
         id: organize
         run: |
           cd openwrt/buildcache
-    		  ls -lh
-              echo "FIRMWARE=$PWD" >> $GITHUB_ENV
-              echo "status=success" >> $GITHUB_OUTPUT
+          ls -lh
+          echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+          echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Generate release tag
         id: tag
