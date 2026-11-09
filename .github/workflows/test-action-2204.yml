@@ -20,7 +20,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
@@ -42,17 +42,6 @@ jobs:
           id
           touch release.txt
           echo "test" > release.txt
-          
-      - name: Upload firmware to release
-        uses: ncipollo/release-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
-        with:
-          tag: test
-          commit: ${{ github.sha }}
-          bodyFile: release.txt
-          artifacts: "release.txt"
-          allowUpdates: true
           
       - name: start frpc
         uses: a520ass/frpc_action@main
