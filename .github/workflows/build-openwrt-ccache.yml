@@ -1,5 +1,5 @@
 
-name: Build OpenWrt Cache
+name: Build OpenWrt CCache
 
 on:
   repository_dispatch:
